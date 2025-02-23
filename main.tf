@@ -49,29 +49,16 @@ resource "vultr_instance" "game_server" {
 # Disable UFW since we're using Vultr's firewall
 ufw disable
 
-apt update && apt install -y curl git
-curl -sL https://raw.githubusercontent.com/babashka/babashka/master/install | bash
+# Install basic dependencies
+apt update && apt install -y git
 
-# Create systemd service file
-cat > /etc/systemd/system/nrepl.service <<'END'
-[Unit]
-Description=Babashka nREPL Server
-After=network.target
+# Clone your repository (replace with your actual repo URL)
+git clone https://github.com/mgetf/servers.git /opt/tf2-server
+cd /opt/tf2-server
 
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/bb --nrepl-server 0.0.0.0:1337
-WorkingDirectory=/root
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-END
-
-# Enable and start the service
-systemctl enable nrepl
-systemctl start nrepl
+# Make the setup script executable and run it
+chmod +x setup.sh
+./setup.sh
 EOF
   firewall_group_id = vultr_firewall_group.game_server_fw.id
 }
