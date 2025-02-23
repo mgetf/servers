@@ -16,6 +16,11 @@ variable "vultr_api_key" {
   sensitive   = true
 }
 
+variable "ssh_key_id" {
+  description = "Vultr SSH key ID"
+  type        = string
+}
+
 locals {
   servers = {
     eu = {
@@ -38,6 +43,7 @@ resource "vultr_instance" "game_server" {
   os_id      = 2284          # Ubuntu 22.04
   hostname   = each.value.hostname
   label      = each.value.label
+  ssh_key_ids = [var.ssh_key_id]
   user_data  = <<EOF
 #!/bin/bash
 apt update && apt install -y curl git
