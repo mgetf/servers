@@ -46,10 +46,32 @@ resource "vultr_instance" "game_server" {
   ssh_key_ids = [var.ssh_key_id]
   user_data  = <<EOF
 #!/bin/bash
+# Disable UFW since we're using Vultr's firewall
+ufw disable
+
 apt update && apt install -y curl git
 curl -sL https://raw.githubusercontent.com/babashka/babashka/master/install | bash
-echo "(require '[babashka.nrepl.server :as nrepl]) (nrepl/start-server :port 1337 :bind \"0.0.0.0\")" > /root/repl.clj
-bb /root/repl.clj &
+
+# Create systemd service file
+cat > /etc/systemd/system/nrepl.service <<'END'
+[Unit]
+Description=Babashka nREPL Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/bb --nrepl-server 0.0.0.0:1337
+WorkingDirectory=/root
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+END
+
+# Enable and start the service
+systemctl enable nrepl
+systemctl start nrepl
 EOF
   firewall_group_id = vultr_firewall_group.game_server_fw.id
 }

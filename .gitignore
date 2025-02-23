@@ -19,3 +19,7 @@ crash.*.log
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+*.swp
+.lsp/
+.clj-kondo/
+.calva/
