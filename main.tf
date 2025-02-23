@@ -16,14 +16,29 @@ variable "vultr_api_key" {
   sensitive   = true
 }
 
+locals {
+  servers = {
+    eu = {
+      region   = "fra"      # Frankfurt
+      hostname = "tf2-eu"
+      label    = "TF2 EU Server"
+    }
+    us = {
+      region   = "ord"      # Chicago
+      hostname = "tf2-us"
+      label    = "TF2 US Server"
+    }
+  }
+}
+
 resource "vultr_instance" "game_server" {
-  plan      = "vc2-2c-4gb" # 2 CPU, 4GB RAM, $20/mo
-  region    = "chi"        # Frankfurt, adjust as needed
-  os_id     = 2284          # Ubuntu 22.04
-  hostname  = "tf2-node"
-  label     = "Game Server"
-  # Bootstrap Babashka, nREPL, and basic deps
-  user_data = <<EOF
+  for_each   = local.servers
+  plan       = "vc2-2c-4gb-intel"
+  region     = each.value.region
+  os_id      = 2284          # Ubuntu 22.04
+  hostname   = each.value.hostname
+  label      = each.value.label
+  user_data  = <<EOF
 #!/bin/bash
 apt update && apt install -y curl git
 curl -sL https://raw.githubusercontent.com/babashka/babashka/master/install | bash
@@ -31,13 +46,6 @@ echo "(require '[babashka.nrepl.server :as nrepl]) (nrepl/start-server :port 133
 bb /root/repl.clj &
 EOF
   firewall_group_id = vultr_firewall_group.game_server_fw.id
-}
-
-
-resource "vultr_block_storage" "tf2_data" {
-  size_gb     = 100
-  region      = "chi"
-  attached_to_instance = vultr_instance.game_server.id
 }
 
 resource "vultr_firewall_group" "game_server_fw" {
@@ -62,10 +70,19 @@ resource "vultr_firewall_rule" "nrepl" {
   ip_type          = "v4"
 }
 
-resource "vultr_firewall_rule" "tf2" {
+resource "vultr_firewall_rule" "tf2_main" {
   firewall_group_id = vultr_firewall_group.game_server_fw.id
   protocol          = "udp"
-  port              = "27015" # TF2 default port
+  port              = "27015"  # Main game connection port (required)
+  subnet            = "0.0.0.0"
+  subnet_size       = 0
+  ip_type          = "v4"
+}
+
+resource "vultr_firewall_rule" "tf2_rcon" {
+  firewall_group_id = vultr_firewall_group.game_server_fw.id
+  protocol          = "tcp"
+  port              = "27015"  # RCON port
   subnet            = "0.0.0.0"
   subnet_size       = 0
   ip_type          = "v4"
@@ -74,12 +91,14 @@ resource "vultr_firewall_rule" "tf2" {
 resource "vultr_firewall_rule" "tf2_stv" {
   firewall_group_id = vultr_firewall_group.game_server_fw.id
   protocol          = "udp"
-  port              = "27020"
+  port              = "27020"  # SourceTV port
   subnet            = "0.0.0.0"
   subnet_size       = 0
   ip_type          = "v4"
 }
 
-output "server_ip" {
-  value = vultr_instance.game_server.main_ip
+output "server_ips" {
+  value = {
+    for k, v in vultr_instance.game_server : k => v.main_ip
+  }
 }
