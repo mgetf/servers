@@ -23,4 +23,6 @@ if false; then
     log_error "This is what an error looks like"
 fi
 
+source scripts/install_tf2.sh
+
 log_info "Setup completed successfully" 
