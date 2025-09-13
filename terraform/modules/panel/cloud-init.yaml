@@ -1,0 +1,52 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose
+  - nginx
+  - certbot
+  - python3-certbot-nginx
+  - wireguard
+  - ufw
+
+users:
+  - name: pterodactyl
+    groups: docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+write_files:
+  - path: /etc/wireguard/wg0.conf
+    content: |
+      [Interface]
+      PrivateKey = ${vpn_private_key}
+      Address = 10.10.10.1/24
+      ListenPort = 51820
+      
+      # Wings nodes will be added here
+    permissions: '0600'
+    
+  - path: /root/panel-setup.sh
+    content: |
+      #!/bin/bash
+      # Configure firewall
+      ufw allow 22/tcp
+      ufw allow 80/tcp
+      ufw allow 443/tcp
+      ufw allow 51820/udp
+      ufw --force enable
+      
+      # Setup WireGuard if enabled
+      %{ if enable_vpn ~}
+      wg-quick up wg0
+      systemctl enable wg-quick@wg0
+      %{ endif ~}
+      
+      # Get SSL certificate
+      certbot certonly --nginx -d ${domain} --non-interactive --agree-tos -m ${admin_email}
+    permissions: '0755'
+
+runcmd:
+  - bash /root/panel-setup.sh

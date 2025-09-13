@@ -1,0 +1,51 @@
+# API Credentials
+do_token      = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+vultr_api_key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# Panel Configuration
+panel_admin_email = "admin@mge.tf"
+panel_domain      = "panel.mge.tf"
+
+# Wings Nodes Configuration
+wings_nodes = {
+  west = {
+    provider = "vultr"
+    region   = "lax"
+    size     = "vc2-2c-4gb"
+  }
+  east = {
+    provider = "vultr"
+    region   = "ewr"
+    size     = "vc2-2c-4gb"
+  }
+  # Example for existing server
+  # home = {
+  #   provider     = "custom"
+  #   region       = "home"
+  #   size         = "custom"
+  #   public_ip    = "192.168.1.100"
+  #   ssh_key_path = "~/.ssh/id_rsa"
+  # }
+}
+
+# Database (use local for testing, migrate to managed later)
+database_provider = "local"
+# database_connection_string = "mysql://user:pass@host:3306/panel" # For external DB
+
+# VPN Configuration
+enable_vpn  = true
+vpn_network = "10.10.10.0/24"
+
+# MGEMod Configuration
+mgemod_repo   = "https://github.com/maxijabase/MGEMod"
+mgemod_branch = "2v2"
+
+# Additional SourceMod plugins
+sourcemod_plugins = [
+  "sm-whois",
+  "mge_sockets"
+]
+
+# Optional: Cloudflare DNS
+# cloudflare_api_token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# cloudflare_zone_id   = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

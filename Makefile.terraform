@@ -1,0 +1,81 @@
+.PHONY: help init plan apply destroy clean ssh-panel ssh-wings docker-build docker-push setup-admin scale-up scale-down
+
+# Variables
+TF_DIR = terraform
+DOCKER_REGISTRY = ghcr.io/mgetf
+DOCKER_IMAGE = tf2-mge
+PANEL_IP = $(shell cd $(TF_DIR) && terraform output -raw panel_ip 2>/dev/null)
+SSH_KEY = $(TF_DIR)/keys/pterodactyl_key.pem
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+init: ## Initialize Terraform
+	@echo "Initializing Terraform..."
+	@cd $(TF_DIR) && terraform init
+
+plan: ## Plan infrastructure changes
+	@cd $(TF_DIR) && terraform plan
+
+apply: ## Deploy infrastructure
+	@cd $(TF_DIR) && terraform apply -auto-approve
+
+destroy: ## Destroy infrastructure (WARNING!)
+	@read -p "Are you sure? This will destroy all infrastructure. Type 'yes': " confirm && \
+	[ "$$confirm" = "yes" ] && cd $(TF_DIR) && terraform destroy -auto-approve
+
+clean: ## Clean temporary files
+	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/*.tfstate* $(TF_DIR)/keys/*
+
+ssh-panel: ## SSH to panel server
+	@ssh -i $(SSH_KEY) root@$(PANEL_IP)
+
+ssh-wings: ## SSH to wings node (specify NODE=west/east/home)
+	@NODE=$${NODE:-west} && \
+	IP=$$(cd $(TF_DIR) && terraform output -json wings_nodes | jq -r ".$$NODE") && \
+	ssh -i $(SSH_KEY) root@$$IP
+
+docker-build: ## Build TF2 MGE Docker image
+	@docker build -t $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):latest docker/
+
+docker-push: ## Push Docker image to registry
+	@docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):latest
+
+setup-admin: ## Create Pterodactyl admin user
+	@echo "Creating admin user on panel..."
+	@ssh -i $(SSH_KEY) root@$(PANEL_IP) "cd /var/www/pterodactyl && php artisan p:user:create"
+
+scale-up: ## Add weekend servers
+	@echo "Scaling up for weekend..."
+	@cd $(TF_DIR) && terraform apply -var-file=weekend.tfvars -auto-approve
+
+scale-down: ## Remove weekend servers
+	@echo "Scaling down after weekend..."
+	@cd $(TF_DIR) && terraform apply -auto-approve
+
+logs-panel: ## View panel logs
+	@ssh -i $(SSH_KEY) root@$(PANEL_IP) "journalctl -u nginx -f"
+
+logs-wings: ## View wings logs (specify NODE=west/east/home)
+	@NODE=$${NODE:-west} && \
+	IP=$$(cd $(TF_DIR) && terraform output -json wings_nodes | jq -r ".$$NODE") && \
+	ssh -i $(SSH_KEY) root@$$IP "journalctl -u wings -f"
+
+backup-db: ## Backup panel database
+	@ssh -i $(SSH_KEY) root@$(PANEL_IP) "mysqldump -u pterodactyl -p panel > /backup/panel-$$(date +%Y%m%d).sql"
+
+update-mgemod: ## Update MGEMod on all servers
+	@echo "Updating MGEMod across all servers..."
+	@cd $(TF_DIR) && terraform apply -target=module.mge_egg -auto-approve
+
+vpn-status: ## Check VPN status
+	@ssh -i $(SSH_KEY) root@$(PANEL_IP) "wg show"
+
+quick-deploy: init apply setup-admin ## Quick deployment (init, apply, create admin)
+	@echo "Deployment complete! Panel URL: https://panel.mge.tf"
+
+validate: ## Validate Terraform configuration
+	@cd $(TF_DIR) && terraform fmt -check && terraform validate
+
+fmt: ## Format Terraform files
+	@cd $(TF_DIR) && terraform fmt -recursive

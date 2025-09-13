@@ -1,130 +1,120 @@
-# Uncletopia
+# MGE.TF Servers
 
-This repo contains [Ansible](https://docs.ansible.com) playbooks and roles for
-configuring and administering the uncletopia server cluster.
+Modern infrastructure deployment for Team Fortress 2 MGE servers using Pterodactyl Panel and Terraform.
 
-## Roles
+## 📚 Documentation
 
-There is several roles that can be installed. Some are just additional tools that are hosted by us (bd-api, tf2bdd, uncledane) 
-and are not required at all. 
+- **[Quick Start Guide](README_QUICKSTART.md)** - Get running in 5 minutes
+- **[Complete Infrastructure Documentation](README_INFRASTRUCTURE.md)** - Full details on architecture, providers, and configuration
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Migration Guide](migrate_from_ansible.sh)** - Script to migrate from existing Ansible setups
 
-### bd-api
+## 🎯 What This Is
 
-Installs the [bd-api](https://github.com/leighmacdonald/bd-api) service.
+A complete infrastructure-as-code solution for deploying and managing TF2 MGE servers globally with:
+- Web-based management panel (Pterodactyl)
+- Multi-region server deployment
+- Automatic updates and maintenance
+- Cost-optimized scaling
+- Modern DevOps practices
 
-### caddy
+## 🚀 Quick Deploy
 
-The [caddy](https://caddyserver.com/) role configures the frontend http proxy that exposes all the internal services such as the 
-gbans website, grafana and sentry.
+```bash
+# 1. Configure
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Add your API keys
 
-### demostats
+# 2. Deploy
+terraform init && terraform apply
 
-The [demostats](https://github.com/leighmacdonald/tf2_demostats) role handles configuring the demostats docker container
-web service for processing incoming demos.
+# 3. Create admin
+ssh -i keys/pterodactyl_key.pem root@PANEL_IP
+cd /var/www/pterodactyl && php artisan p:user:create
 
-### gbans
+# 4. Access panel at https://panel.mge.tf
+```
 
-The gbans roles downloads and configures the [gbans](https://github.com/leighmacdonald/gbans) (and postgres) docker instances. gbans is a tools that provides 
-centralized bans, appeals and other simple community components. This role expects the demostats role as well.
+## 📁 Repository Structure
 
-### metrics
+```
+mgetf/servers/
+├── terraform/                 # Infrastructure as Code
+│   ├── main.tf               # Core infrastructure
+│   ├── variables.tf          # Configuration options
+│   ├── terraform.tfvars.example  # Example configuration
+│   └── modules/              # Reusable components
+│       ├── panel/            # Pterodactyl Panel setup
+│       ├── wings/            # Game server nodes
+│       └── egg/              # TF2 MGE server template
+├── docker/                   # Container definitions
+│   ├── Dockerfile            # TF2 MGE server image
+│   └── entrypoint.sh         # Container startup script
+├── ansible/                  # Legacy Ansible configs (reference)
+├── migrate_from_ansible.sh   # Migration tool
+└── .github/workflows/        # CI/CD pipelines
+```
 
-The metrics role is responsible for configuring the grafana monitoring stack. Installs the grafana web service 
-and associated backend agents loki, prometheus and promtail.
+## 🏗️ Architecture
 
-### sentry (self-hosted)
+```
+Internet → Pterodactyl Panel (Web UI)
+              ↓
+         Wings Nodes (Multiple Regions)
+              ↓
+         Docker Containers (TF2 Servers)
+```
 
-This role is responsible for setting up the [sentry.io self-hosted] error tracking/tracing/instrumentation. This is fairly 
-high resource usage, so be careful if you are going to use this. You can attempt to try running this in 
-[errors only](https://develop.sentry.dev/self-hosted/experimental/errors-only/) mode if you wanted to attempt to use it on
-a lower capacity machine. If you are small scale you should probably just stick to the free hosted tier at sentry.io, it should
-be more than sufficient.
+## 🌍 Supported Providers
 
-### sourcemod (+metamod)
+- **DigitalOcean** - Panel hosting
+- **Vultr** - Game server nodes
+- **AWS EC2** - Enterprise deployments
+- **Linode** - Alternative provider
+- **Self-hosted** - Your own hardware
 
-The sourcemod role is responsible for configuring the [metamod](https://www.sourcemm.net/) and [sourcemod](https://www.sourcemod.net/) installation used in the srcds role. It will 
-automatically download the latest metamod and source versions and fully rebuild the entire plugin tree to ensure 
-compatibility.
+## 💰 Costs
 
-Note that all plugins which to not comply with sourcemods newer syntax `newdecls` have had their source updated with `#pragma newdecls required` and all subsequent 
-required changes.
+- **Minimal**: ~$42/month (Panel + 1 node)
+- **Standard**: ~$60/month (Panel + 2 nodes)
+- **Global**: ~$100/month (Panel + 4 nodes)
 
-There is no pre-existing compiled plugins, you will need to compile anything you need yourself if you use any of these. We compile all plugins during
-the deployment stage.
+## 🛠️ Features
 
-### srcds
+### Current
+- ✅ Automated deployment via Terraform
+- ✅ Multi-region support
+- ✅ Pterodactyl Panel integration
+- ✅ Docker containerization
+- ✅ MGEMod 2v2 support (Ampere's fork)
+- ✅ Automatic SSL certificates
+- ✅ VPN mesh networking (optional)
+- ✅ Migration from Ansible
 
-Installs the baseline SRCDS instance using steamcmd (dd will work too, but it was disabled temporarily due to an auth problem and needs to be re-enabled).
+### Planned
+- 🔄 Auto-scaling based on player count
+- 🔄 Tournament system integration
+- 🔄 WebSocket control API
+- 🔄 Advanced monitoring/metrics
+- 🔄 Automated backups
 
-These do *not* currently run under docker containers due to some painful ergonomics at the time and dealing with some other external problems.
-But they may again in the future as things have improved.
+## 👥 Team
 
-- Downloads and installs metamod and sourcemod.
-- Builds *all* sourcemod plugins from source. This is done to help reduce bitrot and ensure correctness.
-- Configures the services specific plugins and extensions.
+- **Tommy** (tommyy_hla) - Project Lead & Funding
+- **Jason/Zod** (zudsniper) - Infrastructure Engineer
+- **Ampere** (amperetf) - MGEMod Developer
 
-### tf2bdd
+## 📞 Support
 
-Installs an instance of [tf2bdd](https://github.com/leighmacdonald/tf2bdd), which is used to manage bot a detector list 
-via discord.
+- **Discord**: mge.tf dev channel
+- **Issues**: [GitHub Issues](https://github.com/mgetf/servers/issues)
+- **Email**: admin@mge.tf
 
-### uncledane
+## 📄 License
 
-Handles building and running the [uncledane.com](https://uncletdane.com) [src](https://github.com/leighmacdonald/uncledane-web) website. 
+MIT License - See [LICENSE](LICENSE.md)
 
-## Playbooks
+---
 
-These are largely in the order they should be executed in except for, adduser.yml, which must be run first. 
-
-### adduser.yml (once)
-
-Creates the user used for running the services. This only should be run once. A new user will be created and will be used for future playbooks instead as root logins over ssh will be disabled. 
-
-### vpn.yml
-
-Setups a P2P wireguard based vpn network. These playbooks and services are designed to listen and otherwise use internal vpn network traffic
-everywhere possible. This is not strictly required, but not using a vpn is 100% untested/unsupported and will require fixing things yourself.
-
-Note: This required the `python3-netaddr` package to be installed on the *ansible controller host*.
-
-### system.yml
-
-Installs base OS runtime requirements and services.
-
-- Set timezone
-- Enable i386 arch for steam_cmd/srcds
-- Installs apt repos and install docker, rsyslog
-- Enable firewall in deny mode
-
-### update.yml
-
-A helper playbook that will update all systems and reboot them if required.
-
-### tune.yml
-
-An *optional* playbook that contains tasks that will tune the underlying OS. You *must* not run this without understanding
-the repercussions of the changes. You should also adjust them accordingly to your hardware specs & needs.
-
-## Requirements
-
-To install the required additional collections and roles you can use the provided requirements.yml file.
-
-    ansible-galaxy install -r requirements.yml
-
-## Troubleshooting
-
-### spcomp fails to execute
-
-If you are on a 64bit machine you will want 32bit libs for spcomp.
-
-    sudo apt get install libc6:i386 lib32stdc++6
-
-
-## Manual Setup Steps
-
-There is a few steps that are not entirely automated yet. These are generally going to be one time setup type of steps.
-
-These will eventually get automated, but are quite low priority.
-
-- (One time) Create sentry admin user
-  - ssh {{ caddy.hosts.sentry.dns }} -C "cd ~/sentry && docker compose run --rm web createuser"
+*Originally forked from [leighmacdonald/uncletopia](https://github.com/leighmacdonald/uncletopia) Ansible playbooks*
