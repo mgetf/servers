@@ -1,4 +1,8 @@
-# Stage 1 : Download Sourcemod and Metamod
+# ===========================================
+# TF2 MGE Server - Custom Build
+# ===========================================
+
+# Stage 1: Download SourceMod and MetaMod
 FROM ubuntu:22.04 AS sourcemod-metamod
 WORKDIR /download
 ARG INSTALL_DIR=/server/tf
@@ -20,62 +24,37 @@ RUN tar xf "${SOURCEMOD_FILE_NAME}" -C "${INSTALL_DIR}/"
 
 # Stage 2: Download Plugins
 FROM ubuntu:22.04 AS plugins
-
 SHELL ["/bin/bash", "-c"]
 
 RUN export DEBIAN_FRONTEND=noninteractive \
-  && export TZ=Etc/UTC \
   && apt-get -y update \
   && apt-get install -y --no-install-recommends --no-install-suggests \
-  ca-certificates \
-  curl \
-  unzip \
+  ca-certificates curl unzip \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /download
-
 ARG PLUGIN_INSTALL_DIR=/server/tf
-RUN mkdir -p "${PLUGIN_INSTALL_DIR}"
-RUN mkdir -p "${PLUGIN_INSTALL_DIR}" "${PLUGIN_INSTALL_DIR}/addons/sourcemod/plugins/"
+RUN mkdir -p "${PLUGIN_INSTALL_DIR}/addons/sourcemod/plugins/"
 
-# F2's SourceMod plugins
-ARG F2_SOURCEMOD_PLUGINS_FILE_NAME=f2-sourcemod-plugins.zip
-ARG F2_SOURCEMOD_PLUGINS_VERSION=20250908-1757334414124
-ARG F2_SOURCEMOD_PLUGINS_URL=https://github.com/F2/F2s-sourcemod-plugins/releases/download/${F2_SOURCEMOD_PLUGINS_VERSION}/${F2_SOURCEMOD_PLUGINS_FILE_NAME}
-ARG F2_ENABLED_PLUGINS="afk.smx fixstvslot.smx logstf.smx medicstats.smx recordstv.smx restorescore.smx supstats2.smx waitforstv.smx"
-RUN curl -L "${F2_SOURCEMOD_PLUGINS_URL}" -o "${F2_SOURCEMOD_PLUGINS_FILE_NAME}" \
-  && unzip -q -j "${F2_SOURCEMOD_PLUGINS_FILE_NAME}" ${F2_ENABLED_PLUGINS} \
-  -d "${PLUGIN_INSTALL_DIR}/addons/sourcemod/plugins/"
-
-# MGEMod (by Maxijabase)
-ARG MGEMOD_FILE_NAME=mge.zip
+# MGEMod - customize version as needed
 ARG MGEMOD_VERSION=v3.1.0-beta9
-ARG MGEMOD_URL=https://github.com/maxijabase/MGEMod/releases/download/${MGEMOD_VERSION}/${MGEMOD_FILE_NAME}
-RUN curl -L "${MGEMOD_URL}" -o "${MGEMOD_FILE_NAME}" \
-  && unzip -q -n "${MGEMOD_FILE_NAME}" -d "${PLUGIN_INSTALL_DIR}/"
+ARG MGEMOD_URL=https://github.com/maxijabase/MGEMod/releases/download/${MGEMOD_VERSION}/mge.zip
+RUN curl -L "${MGEMOD_URL}" -o mge.zip \
+  && unzip -q -n mge.zip -d "${PLUGIN_INSTALL_DIR}/"
 
-# Stage 3 : Final image
+# Stage 3: Final image
 FROM steamcmd/steamcmd:ubuntu-22
 
 RUN export DEBIAN_FRONTEND=noninteractive \
-  && export TZ=Etc/UTC \
   && dpkg --add-architecture i386 \
   && apt-get -y update \
   && apt-get install -y software-properties-common \
   && add-apt-repository multiverse \
   && apt-get -y update \
   && apt-get install -y --no-install-recommends --no-install-suggests \
-  lib32gcc-s1 \
-  lib32z1 \
-  libncurses5:i386 \
-  libbz2-1.0:i386 \
-  lib32stdc++6 \
-  libtinfo5:i386 \
-  libcurl3-gnutls:i386 \
-  wget \
-  unzip \
-  gettext-base \
-  libbsd0 \
+  lib32gcc-s1 lib32z1 libncurses5:i386 libbz2-1.0:i386 \
+  lib32stdc++6 libtinfo5:i386 libcurl3-gnutls:i386 \
+  wget unzip gettext-base libbsd0 netcat-openbsd \
   && rm -rf /var/lib/apt/lists/*
 
 ARG USER=tf2
@@ -83,87 +62,81 @@ ARG HOME=/home/$USER
 ARG SERVER_DIR=$HOME/server
 ARG APP_ID=232250
 
-ENV USER=$USER
-ENV HOME=$HOME
-ENV SERVER_DIR=$SERVER_DIR
-ENV APP_ID=$APP_ID
-ENV SRCDS_EXEC=srcds_run
+ENV USER=$USER \
+    HOME=$HOME \
+    SERVER_DIR=$SERVER_DIR \
+    APP_ID=$APP_ID
 
 RUN useradd --home-dir $HOME --create-home --shell /bin/bash $USER
 USER $USER
 WORKDIR $HOME
 
-# Copies tf2version.txt to make the layer stale when the TF2 version is updated
-COPY ./variants/base/maps_to_keep ./variants/base/tf2.txt.template ./tf2version.txt $HOME/
-COPY --chmod=755 ./variants/base/install_tf2.sh $HOME/
-RUN envsubst < $HOME/tf2.txt.template > $HOME/tf2.txt \
-  && steamcmd +help +quit \
-  && $HOME/install_tf2.sh \
-  && find $SERVER_DIR/tf/maps -type f | grep -v "$(cat maps_to_keep)" | xargs rm -rf \
-  && rm maps_to_keep \
+# Install TF2 Dedicated Server
+RUN steamcmd +force_install_dir $SERVER_DIR \
+  +login anonymous \
+  +app_update $APP_ID validate \
+  +quit \
   && mkdir -p $HOME/.steam \
   && ln -s $HOME/.local/share/Steam/steamcmd/linux32 $HOME/.steam/sdk32
 
-COPY ./variants/base/tf/cfg/server.cfg.template ${SERVER_DIR}/tf/cfg/server.cfg.template
-COPY ./variants/base/rcon ${SERVER_DIR}/rcon
-
-ENV IP=0.0.0.0
-ENV PORT=27015
-ENV CLIENT_PORT=27016
-ENV STEAM_PORT=27018
-ENV STV_PORT=27020
-ENV SERVER_TOKEN=""
-ENV ENABLE_FAKE_IP=0
-
-ENV RCON_PASSWORD="123456"
-ENV SERVER_HOSTNAME="A Team Fortress 2 server"
-ENV SERVER_PASSWORD=
-ENV STV_NAME="Source TV"
-ENV STV_TITLE="A Team Fortress 2 server Source TV"
-ENV STV_PASSWORD=
-ENV DOWNLOAD_URL="https://maps.sonikro.com/fastdl/"
-
 WORKDIR $SERVER_DIR
-COPY ./variants/base/entrypoint.sh .
-COPY ./variants/base/healthcheck.sh .
 
+# Copy SourceMod and MetaMod from build stage
 COPY --from=sourcemod-metamod --chown=tf2 /server/tf/ "${SERVER_DIR}/tf/"
 
-# Copy plugins and configs from build stage
+# Copy plugins from build stage
 COPY --from=plugins --chown=tf2 /server/tf/ "${SERVER_DIR}/tf/"
 
-# Disable useless (and potentially harmful) plugins
-RUN mv "${SERVER_DIR}/tf/addons/sourcemod/plugins/"{nextmap,funcommands,funvotes}.smx "${SERVER_DIR}/tf/addons/sourcemod/plugins/disabled/" || true
+# Disable problematic default plugins
+RUN mkdir -p "${SERVER_DIR}/tf/addons/sourcemod/plugins/disabled" \
+  && mv "${SERVER_DIR}/tf/addons/sourcemod/plugins/"{nextmap,funcommands,funvotes}.smx \
+     "${SERVER_DIR}/tf/addons/sourcemod/plugins/disabled/" 2>/dev/null || true
+
+# Copy custom configs (your MGE settings)
+COPY --chown=tf2 tf/ "${SERVER_DIR}/tf/"
 
 # Environment variables
-ENV ADMIN_LIST="" \
-    DEFAULT_MGE_CFG="mge.cfg"
+ENV IP=0.0.0.0 \
+    PORT=27015 \
+    CLIENT_PORT=27016 \
+    STEAM_PORT=27018 \
+    STV_PORT=27020 \
+    SERVER_TOKEN="" \
+    RCON_PASSWORD="changeme" \
+    SERVER_HOSTNAME="MGE Server" \
+    SERVER_PASSWORD="" \
+    STV_NAME="Source TV" \
+    STV_PASSWORD=""
 
-USER tf2
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Generate server.cfg from environment\n\
+cat > "${SERVER_DIR}/tf/cfg/server.cfg" <<EOF\n\
+hostname "${SERVER_HOSTNAME}"\n\
+rcon_password "${RCON_PASSWORD}"\n\
+sv_password "${SERVER_PASSWORD}"\n\
+tv_name "${STV_NAME}"\n\
+tv_password "${STV_PASSWORD}"\n\
+EOF\n\
+\n\
+# Start the server\n\
+exec "${SERVER_DIR}/srcds_run" \\\n\
+  -game tf \\\n\
+  -ip "${IP}" \\\n\
+  -port "${PORT}" \\\n\
+  +clientport "${CLIENT_PORT}" \\\n\
+  +tv_port "${STV_PORT}" \\\n\
+  ${SERVER_TOKEN:++sv_setsteamaccount "${SERVER_TOKEN}"} \\\n\
+  "$@"\n\
+' > entrypoint.sh && chmod +x entrypoint.sh
 
-# Copy default settings
-COPY --chown=tf2 variants/base/tf/cfg/* "${SERVER_DIR}/tf/cfg/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/configs/* "${SERVER_DIR}/tf/addons/sourcemod/configs/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/plugins/*.smx "${SERVER_DIR}/tf/addons/sourcemod/plugins/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/plugins/disabled/*.smx "${SERVER_DIR}/tf/addons/sourcemod/plugins/disabled/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/scripting/* "${SERVER_DIR}/tf/addons/sourcemod/scripting/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/translations/* "${SERVER_DIR}/tf/addons/sourcemod/translations/"
-COPY --chown=tf2 variants/base/tf/addons/sourcemod/extensions/* "${SERVER_DIR}/tf/addons/sourcemod/extensions/"
-# Copy specific MGE settings
-COPY --chown=tf2 variants/fat-mge-tf/tf/addons/sourcemod/configs/* "${SERVER_DIR}/tf/addons/sourcemod/configs/"
-COPY --chown=tf2 variants/fat-mge-tf/tf/cfg/* "${SERVER_DIR}/tf/cfg/"
-# Only copy MGE maps
-COPY --chown=tf2 maps/mge* "${SERVER_DIR}/tf/maps/"
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD nc -z -u localhost ${PORT} || exit 1
 
-# Copy custom entrypoint
-COPY --chown=tf2 variants/base/enforced_cvars.cfg $SERVER_DIR/enforced_cvars.cfg
-COPY --chown=tf2 variants/base/custom_entrypoint.sh .
+EXPOSE ${PORT}/tcp ${PORT}/udp ${STV_PORT}/udp
 
-ENTRYPOINT [ "./custom_entrypoint.sh" ]
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["+sv_pure", "1", "+map", "mge_training_v8_beta4b", "+maxplayers", "24"]
-
-EXPOSE $PORT/tcp
-EXPOSE $PORT/udp
-EXPOSE $STV_PORT/udp
-
-HEALTHCHECK --interval=30s --timeout=30s --start-period=20s --retries=3 CMD [ "./healthcheck.sh" ]
