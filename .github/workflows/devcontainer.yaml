@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '.github/.devcontainer/**'
+      - 'terraform/.github/.devcontainer/**'
     branches:
       - main
   pull_request:
     paths:
       - '.github/.devcontainer/**'
+      - 'terraform/.github/.devcontainer/**'
     branches:
       - main
 
@@ -35,7 +37,8 @@ jobs:
         with:
           imageName: ghcr.io/sonikro/terraform-oracle-tf2-server-devcontainer
           cacheFrom: ghcr.io/sonikro/terraform-oracle-tf2-server-devcontainer
-          subFolder: .github
+          subFolder: terraform/.github
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'always' || 'never' }}
           runCmd: |
             terraform --version
+

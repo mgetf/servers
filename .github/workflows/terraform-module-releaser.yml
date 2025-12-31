@@ -5,6 +5,8 @@ on:
     types: [opened, reopened, synchronize, closed]
     branches:
       - main
+    paths:
+      - 'terraform/**'
 
 permissions:
   contents: write
@@ -25,3 +27,5 @@ jobs:
           patch-keywords: fix,chore,docs
           default-first-tag: v1.0.0
           module-path-ignore: examples/**
+        working-directory: terraform
+

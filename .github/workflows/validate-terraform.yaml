@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
 
 jobs:
   validate_terraform:
@@ -14,11 +19,11 @@ jobs:
     strategy:
       matrix:
         module:
-          - modules/iam
-          - modules/network
-          - modules/tf2-server
-          - modules/vault
-          - examples/simple
+          - terraform/modules/iam
+          - terraform/modules/network
+          - terraform/modules/tf2-server
+          - terraform/modules/vault
+          - terraform/examples/simple
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -33,3 +38,4 @@ jobs:
           terraform init -backend=false
           terraform fmt -check
           terraform validate
+
