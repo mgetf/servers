@@ -71,11 +71,15 @@ RUN useradd --home-dir $HOME --create-home --shell /bin/bash $USER
 USER $USER
 WORKDIR $HOME
 
-# Install TF2 Dedicated Server
-RUN steamcmd +force_install_dir $SERVER_DIR \
-  +login anonymous \
-  +app_update $APP_ID validate \
-  +quit \
+# Install TF2 Dedicated Server (with retries for flaky steamcmd)
+RUN steamcmd +quit || true \
+  && for i in 1 2 3 4 5; do \
+       steamcmd +force_install_dir $SERVER_DIR \
+         +login anonymous \
+         +app_update $APP_ID validate \
+         +quit \
+       && break || echo "Attempt $i failed, retrying..." && sleep 5; \
+     done \
   && mkdir -p $HOME/.steam \
   && ln -s $HOME/.local/share/Steam/steamcmd/linux32 $HOME/.steam/sdk32
 
