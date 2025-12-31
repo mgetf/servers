@@ -1,0 +1,17 @@
+# ===========================================
+# MGE Server Configuration
+# ===========================================
+# Copy this file to terraform.tfvars and fill in your values
+
+# Required: Your OCI compartment OCID
+compartment_id = "ocid1.compartment.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Required: RCON password for server administration
+rcon_password = "your-secure-rcon-password"
+
+# Optional: Server name shown in browser
+server_hostname = "MGE Training Server"
+
+# Optional: Steam GSLT (get one at https://steamcommunity.com/dev/managegameservers)
+# server_token = "your-gslt-token"
+

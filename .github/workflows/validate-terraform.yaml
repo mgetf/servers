@@ -24,6 +24,7 @@ jobs:
           - terraform/modules/tf2-server
           - terraform/modules/vault
           - terraform/examples/simple
+          - terraform/deployments/mge
     steps:
       - name: Check out code
         uses: actions/checkout@v4
